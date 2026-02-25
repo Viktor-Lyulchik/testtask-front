@@ -1,27 +1,84 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import * as yup from 'yup';
 import { authApi } from '../api/endpoints';
 import { setAuth } from '../store/authSlice';
+
+const schema = yup.object({
+  email: yup
+    .string()
+    .email('Invalid email address')
+    .required('Email is required'),
+  password: yup
+    .string()
+    .min(6, 'Password must be at least 6 characters')
+    .required('Password is required'),
+  confirmPassword: yup
+    .string()
+    .oneOf([yup.ref('password')], 'Passwords do not match')
+    .required('Please confirm your password'),
+});
 
 export default function RegisterPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  const validateField = async (field: string, value: string) => {
+    try {
+      await schema.validateAt(field, {
+        email,
+        password,
+        confirmPassword,
+        [field]: value,
+      });
+      setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        setFieldErrors(prev => ({ ...prev, [field]: err.message }));
+      }
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setFieldErrors({});
+
+    try {
+      await schema.validate(
+        { email, password, confirmPassword },
+        { abortEarly: false }
+      );
+    } catch (validationError) {
+      if (validationError instanceof yup.ValidationError) {
+        const errors: typeof fieldErrors = {};
+        validationError.inner.forEach(err => {
+          if (err.path) errors[err.path as keyof typeof errors] = err.message;
+        });
+        setFieldErrors(errors);
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const data = await authApi.register(email.toLowerCase(), password);
       dispatch(setAuth(data));
       navigate('/');
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Registration failed.');
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      setError(anyErr?.response?.data?.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -54,10 +111,17 @@ export default function RegisterPage() {
                 type="email"
                 placeholder="Email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 font-normal text-sm bg-[#e0e0e0] border border-gray-200 rounded text-navy focus:outline-none focus:border-gold/80 placeholder:text-gray-400"
+                onChange={e => {
+                  setEmail(e.target.value);
+                  void validateField('email', e.target.value);
+                }}
+                className={`w-full px-4 py-3 font-normal text-sm bg-[#e0e0e0] border rounded text-navy focus:outline-none focus:border-gold/80 placeholder:text-gray-400 ${
+                  fieldErrors.email ? 'border-red-400' : 'border-gray-200'
+                }`}
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -68,11 +132,44 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full px-4 py-3 font-normal mb-2.5 text-sm bg-[#e0e0e0] border border-gray-200 rounded text-navy focus:outline-none focus:border-gold/80 placeholder:text-gray-400"
+                onChange={e => {
+                  setPassword(e.target.value);
+                  void validateField('password', e.target.value);
+                }}
+                className={`w-full px-4 py-3 font-normal text-sm bg-[#e0e0e0] border rounded text-navy focus:outline-none focus:border-gold/80 placeholder:text-gray-400 ${
+                  fieldErrors.password ? 'border-red-400' : 'border-gray-200'
+                }`}
               />
+              {fieldErrors.password && (
+                <p className="mt-1 text-xs text-red-500">
+                  {fieldErrors.password}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm text-black font-bold mb-1.5 tracking-wide">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={e => {
+                  setConfirmPassword(e.target.value);
+                  void validateField('confirmPassword', e.target.value);
+                }}
+                className={`w-full px-4 py-3 font-normal text-sm bg-[#e0e0e0] border rounded text-navy focus:outline-none focus:border-gold/80 placeholder:text-gray-400 ${
+                  fieldErrors.confirmPassword
+                    ? 'border-red-400'
+                    : 'border-gray-200'
+                }`}
+              />
+              {fieldErrors.confirmPassword && (
+                <p className="mt-1 text-xs text-red-500">
+                  {fieldErrors.confirmPassword}
+                </p>
+              )}
               <div className="flex justify-end items-center mb-2.5">
                 <button
                   type="button"
