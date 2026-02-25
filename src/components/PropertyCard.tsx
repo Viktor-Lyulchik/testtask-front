@@ -23,7 +23,8 @@ export default function PropertyCard({ property }: Props) {
   const { user } = useSelector((s: RootState) => s.auth);
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [amount, setAmount] = useState(property.ticket);
+  const [amount, setAmount] = useState<string>(String(property.ticket));
+  const [validationError, setValidationError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -100,18 +101,46 @@ export default function PropertyCard({ property }: Props) {
     setShowModal(true);
     setSuccess(false);
     setError('');
+    setAmount(String(property.ticket));
+    setValidationError('');
   };
 
   const handleSubmit = async () => {
+    const num = parseInt(amount, 10);
+    if (!amount || isNaN(num) || num < property.ticket) {
+      setValidationError(
+        `Minimum amount is ${property.ticket.toLocaleString()} Dhs`
+      );
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      await applicationsApi.create(property.id, amount);
+      await applicationsApi.create(property.id, num);
       setSuccess(true);
     } catch {
       setError('Failed to submit. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val === '') {
+      setAmount('');
+      setValidationError('Please enter an amount');
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const num = parseInt(val, 10);
+    setAmount(String(num));
+    if (num < property.ticket) {
+      setValidationError(
+        `Minimum amount is ${property.ticket.toLocaleString()} Dhs`
+      );
+    } else {
+      setValidationError('');
     }
   };
 
@@ -251,9 +280,12 @@ export default function PropertyCard({ property }: Props) {
                   value={amount}
                   min={property.ticket}
                   step={property.ticket}
-                  onChange={e => setAmount(Number(e.target.value))}
-                  className="w-full bg-navy/5 border border-navy/15 rounded px-4 py-2.5 text-navy focus:outline-none focus:border-gold/60 mb-4"
+                  onChange={handleAmountChange}
+                  className="w-full bg-navy/5 border border-navy/15 rounded px-4 py-2.5 text-navy focus:outline-none focus:border-gold/60 mb-1"
                 />
+                {validationError && (
+                  <p className="mb-3 text-xs text-red-400">{validationError}</p>
+                )}
 
                 {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
@@ -268,7 +300,7 @@ export default function PropertyCard({ property }: Props) {
                   <button
                     onClick={handleSubmit}
                     aria-label="Submit application"
-                    disabled={loading}
+                    disabled={loading || !!validationError || !amount}
                     className="flex-1 py-2.5 bg-gold text-white rounded font-semibold text-sm hover:bg-transparent border border-gold hover:text-gold transition-colors disabled:opacity-50"
                   >
                     {loading ? 'Submitting…' : 'Submit Application'}
