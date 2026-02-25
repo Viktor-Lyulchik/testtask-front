@@ -107,9 +107,15 @@ export default function PropertyCard({ property }: Props) {
 
   const handleSubmit = async () => {
     const num = parseInt(amount, 10);
-    if (!amount || isNaN(num) || num < property.ticket) {
+
+    if (
+      !amount ||
+      isNaN(num) ||
+      num < property.ticket ||
+      num % property.ticket !== 0
+    ) {
       setValidationError(
-        `Minimum amount is ${property.ticket.toLocaleString()} Dhs`
+        `Amount must be a multiple of ${property.ticket.toLocaleString()} Dhs`
       );
       return;
     }
@@ -132,12 +138,14 @@ export default function PropertyCard({ property }: Props) {
       setValidationError('Please enter an amount');
       return;
     }
+
     if (!/^\d+$/.test(val)) return;
     const num = parseInt(val, 10);
     setAmount(String(num));
-    if (num < property.ticket) {
+
+    if (num < property.ticket || num % property.ticket !== 0) {
       setValidationError(
-        `Minimum amount is ${property.ticket.toLocaleString()} Dhs`
+        `Amount must be a multiple of ${property.ticket.toLocaleString()} Dhs`
       );
     } else {
       setValidationError('');
