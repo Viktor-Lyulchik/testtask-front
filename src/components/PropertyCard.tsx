@@ -289,10 +289,15 @@ export default function PropertyCard({ property }: Props) {
                   min={property.ticket}
                   step={property.ticket}
                   onChange={handleAmountChange}
-                  className="w-full bg-navy/5 border border-navy/15 rounded px-4 py-2.5 text-navy focus:outline-none focus:border-gold/60 mb-1"
+                  className="w-full bg-navy/5 border border-navy/15 rounded px-4 py-2.5 text-navy focus:outline-none focus:border-gold/60 mb-2 transition-colors"
+                  aria-invalid={!!validationError}
+                  aria-describedby="amount-error"
+                  aria-label="Amount of investment in dirhams"
                 />
                 {validationError && (
-                  <p className="mb-3 text-xs text-red-400">{validationError}</p>
+                  <p className="mb-3 text-xs text-red-400" id="amount-error">
+                    {validationError}
+                  </p>
                 )}
 
                 {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
